@@ -3,6 +3,21 @@ import re
 
 _tokenizer = None
 
+# 书目简介中普遍出现但对分类无帮助的停用词
+STOP_WORDS = {
+    '本书', '书', '一书', '全书', '该书',
+    '介绍', '主要', '内容', '包括', '涉及', '阐述', '讲述', '论述', '描述', '叙述',
+    '分析', '探讨', '研究', '讨论', '介绍了', '包含',
+    '读者', '作者', '编者', '译者',
+    '章节', '部分', '第一', '第二', '第三', '附录',
+    '以及', '并且', '同时', '通过', '对于', '关于', '针对',
+    '方面', '问题', '方法', '技术', '理论', '实践', '应用',
+    '进行', '实现', '完成', '提供', '给出', '建立',
+    '等', '等等', '其他', '相关', '具体', '基本', '主要',
+    '的', '了', '在', '是', '有', '和', '与', '或', '及',
+    '各', '每', '这', '那', '其', '此',
+}
+
 def _get_tokenizer():
     global _tokenizer
     if _tokenizer is None:
@@ -10,7 +25,8 @@ def _get_tokenizer():
     return _tokenizer
 
 def _filter_tokens(tokens):
-    return [t for t in tokens if re.search(r'[\u4e00-\u9fff\w]', t)]
+    return [t for t in tokens
+            if re.search(r'[\u4e00-\u9fff\w]', t) and t not in STOP_WORDS]
 
 def intro_tokenize_text(text):
     tokens = _get_tokenizer()(text)
@@ -26,6 +42,7 @@ def intro_tokenize_batch(text_list, batch_size=64):
     return result
 
 def classify_tokenize_text(text):
+    text = text.split('/')[0] 
     return list(text)
 
 def tokenize_text(text_list, tokenizer):
@@ -35,9 +52,10 @@ def tokenize_text(text_list, tokenizer):
     return result
 
 class WordCount:
-    def __init__(self, text_list, min_freq=0, reserved_tokens=None):
+    def __init__(self, text_list, min_freq=0, max_freq=None, reserved_tokens=None):
         self.text_list = text_list
         self.min_freq = min_freq
+        self.max_freq = max_freq  # None 表示不限制上限
         self.reserved_tokens = reserved_tokens or []
         self.word_count = dict()
         self.word_index = dict()
@@ -52,7 +70,6 @@ class WordCount:
                 else:
                     self.word_count[token] += 1
         return self.word_count
-    
 
     def build_word_index(self):
         self.index_word = dict()
@@ -61,7 +78,11 @@ class WordCount:
             self.word_index[token] = idx
             self.index_word[idx] = token
         for word, count in self.word_count.items():
-            if count >= self.min_freq and word not in self.word_index:
+            if count < self.min_freq:
+                continue
+            if self.max_freq is not None and count > self.max_freq:
+                continue
+            if word not in self.word_index:
                 idx = len(self.word_index)
                 self.word_index[word] = idx
                 self.index_word[idx] = word

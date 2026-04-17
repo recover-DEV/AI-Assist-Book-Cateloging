@@ -2,6 +2,7 @@ from arch.encoder_decoder import Encoder, Decoder, EncoderDecoder
 from utils.text_handle import intro_tokenize_text, WordCount,classify_tokenize_text
 from torch.nn import LSTM
 import torch
+import os
 from torch import nn
 
 class LSTM_encoder(Encoder):
@@ -21,6 +22,7 @@ class LSTM_decoder(Decoder):
         self.embedding = nn.Embedding(vocab_size, embedding_size)
         self.rnn = LSTM(embedding_size+hidden_size, hidden_size, num_layers, dropout=dropout)
         self.dense = nn.Linear(hidden_size, vocab_size)
+        self.layer_norm = nn.LayerNorm(hidden_size)
     
     def init_state(self,enc_outputs, *args):
         return enc_outputs[1]
@@ -30,6 +32,7 @@ class LSTM_decoder(Decoder):
         context = state[0][-1].repeat(X.shape[0],1,1)
         X = torch.cat((X,context), 2)
         output, state = self.rnn(X,state)
+        output = self.layer_norm(output)
         output = self.dense(output).permute(1,0,2)
         return output, state
 
@@ -61,17 +64,18 @@ def grad_clipping(net, theta):
     return norm
 
 
-def train_seq2seq(net, data_iter, lr, num_epochs, tgt_vocab, device):
-    def xavier_init_weights(m):
-        if type(m) == nn.Linear:
-            nn.init.xavier_uniform_(m.weight)
-        if type(m) == nn.GRU:
-            for param in m._flat_weights_names:
-                if "weight" in param:
-                    nn.init.xavier_uniform_(m._parameters[param])
-    net.apply(xavier_init_weights)
+def train_seq2seq(net, data_iter, optimizer, num_epochs, tgt_vocab, device, save_dir, save_epoch, eval_epoch, start_epoch=0):
+    if start_epoch == 0:
+        def xavier_init_weights(m):
+            if type(m) == nn.Linear:
+                nn.init.xavier_uniform_(m.weight)
+            if type(m) == nn.GRU:
+                for param in m._flat_weights_names:
+                    if "weight" in param:
+                        nn.init.xavier_uniform_(m._parameters[param])
+        net.apply(xavier_init_weights)
     net.to(device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+    
     loss = MaskedSoftmaxCELoss()
     net.train()
     for epoch in range(num_epochs):
@@ -87,9 +91,12 @@ def train_seq2seq(net, data_iter, lr, num_epochs, tgt_vocab, device):
             grad_clipping(net, 1)
             num_tokens = Y_valid_len.sum()
             optimizer.step()
-        if (epoch + 1) % 10 == 0:
-            print(f'epoch {epoch + 1}, loss {l.sum() / num_tokens:.3f}')
-
+        if (epoch + 1) % save_epoch == 0:
+            path = os.path.join(save_dir, "model"+str(epoch+start_epoch + 1)+".pth")
+            torch.save(net.state_dict(), path)
+            print(f'model saved to {path}, train epoch {start_epoch + epoch + 1}')
+        if (epoch + 1) % eval_epoch == 0:
+            print(f'epoch {epoch + 1}, loss {l.sum() / num_tokens:.6f}')
 
 def truncate_pad(line, num_steps, padding_token):
     if len(line) > num_steps:
@@ -129,7 +136,6 @@ def predict_seq2seq(net, src_sentence, src_vocab, tgt_vocab, num_steps,
         if pred == tgt_vocab['<eos>']:
             break
         output_seq.append(pred)
-    print(output_seq)
     return ''.join(tgt_vocab.index_word.get(i, '<unk>') for i in output_seq), attention_weight_seq
 
 

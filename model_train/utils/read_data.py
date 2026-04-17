@@ -11,24 +11,24 @@ def truncate_pad(indices, num_steps, pad_idx):
     return indices + [pad_idx] * (num_steps - len(indices))
 
 def read_data(file_path):
-    data = pd.read_csv(file_path)
-    data = data[['introduction', 'refer_class_no']].dropna()
+    data = pd.read_csv(file_path,encoding='utf-8')
+    data = data[['introduction', 'real_class_no']].dropna()
     return data
 
 def build_dataset(file_path):
-    data = pd.read_csv(file_path)
-    data = data.dropna(subset=['introduction', 'refer_class_no'])
+    data = pd.read_csv(file_path,encoding='utf-8')
+    data = data.dropna(subset=['introduction', 'real_class_no'])
     intro_list = data['introduction'].tolist()
-    classify_list = data['refer_class_no'].tolist()
+    classify_list = data['real_class_no'].tolist()
     intro_token_list = intro_tokenize_batch(intro_list)
-    classify_token_list = [list(cls) for cls in classify_list]
+    classify_token_list = [list(cls.split('/')[0]) for cls in classify_list]
     return intro_token_list, classify_token_list
 
 class TextDataset(Dataset):
     def __init__(self, intro_token_list, classify_token_list,
-                 min_freq=1, src_num_steps=256, tgt_num_steps=16):
-        self.vocab = WordCount(intro_token_list, min_freq=min_freq,
-                               reserved_tokens=['<pad>', '<bos>', '<eos>', '<unk>'])
+                 min_freq=1, max_freq=None, src_num_steps=256, tgt_num_steps=16):
+        self.vocab = WordCount(intro_token_list, min_freq=min_freq, max_freq=max_freq,
+                               reserved_tokens=['<pad>', '<unk>', '<eos>'])
         self.label_vocab = WordCount(classify_token_list, min_freq=min_freq,
                                      reserved_tokens=['<pad>', '<bos>', '<eos>', '<unk>'])
 
