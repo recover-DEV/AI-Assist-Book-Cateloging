@@ -35,9 +35,10 @@ def tokenize_text(text_list, tokenizer):
     return result
 
 class WordCount:
-    def __init__(self, text_list, min_freq=0):
+    def __init__(self, text_list, min_freq=0, reserved_tokens=None):
         self.text_list = text_list
         self.min_freq = min_freq
+        self.reserved_tokens = reserved_tokens or []
         self.word_count = dict()
         self.word_index = dict()
         self.count_word()
@@ -55,8 +56,12 @@ class WordCount:
 
     def build_word_index(self):
         self.index_word = dict()
+        for token in self.reserved_tokens:
+            idx = len(self.word_index)
+            self.word_index[token] = idx
+            self.index_word[idx] = token
         for word, count in self.word_count.items():
-            if count >= self.min_freq:
+            if count >= self.min_freq and word not in self.word_index:
                 idx = len(self.word_index)
                 self.word_index[word] = idx
                 self.index_word[idx] = word
