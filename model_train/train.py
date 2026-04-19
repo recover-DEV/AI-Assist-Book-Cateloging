@@ -3,7 +3,8 @@ import torch
 from utils.read_data import build_dataset, TextDataset
 from torch.utils.data import DataLoader
 from arch.encoder_decoder import EncoderDecoder
-from arch.LSTM import train_seq2seq, predict_seq2seq, LSTM_encoder, LSTM_decoder
+from arch.LSTM import LSTM_encoder, LSTM_decoder
+from arch.train_pred import train_seq2seq, predict_seq2seq
 from utils.Accurancy import bleu
 
 
@@ -15,14 +16,14 @@ num_hiddens = 256
 num_layers = 2
 dropout = 0.2
 batch_size = 64
-num_steps = 30
-lr = 0.0003
-num_epochs = 50
+num_steps = 50
+lr = 0.0001
+num_epochs = 5
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 intro_token_list, classify_token_list = build_dataset(train_file_path)
 test_intro_token_list, test_classify_token_list = build_dataset(test_file_path)
-min_freq = 2          # 过滤低频词（出现少于2次）
+min_freq = 1          # 过滤低频词（出现少于1次）
 max_freq = None       # 高频词上限由停用词表控制，此处不额外限制；如需数值限制可设为文档数的80%
 dataset = TextDataset(intro_token_list, classify_token_list, min_freq=min_freq, max_freq=max_freq, src_num_steps=num_steps, tgt_num_steps=num_steps)
 test_dataset = TextDataset(test_intro_token_list, test_classify_token_list, min_freq=min_freq, max_freq=max_freq, src_num_steps=num_steps, tgt_num_steps=num_steps)
@@ -42,6 +43,13 @@ optimizer = torch.optim.Adam(EncoderDecoder.parameters(), lr=lr)
 EncoderDecoder.to(device)
 save_dir = os.path.join(BASE_DIR, "models")
 os.makedirs(save_dir, exist_ok=True)
+vocab_path = os.path.join(save_dir, "vocab.pth")
+torch.save({
+    'src_vocab': dataset.vocab.to_state(),
+    'tgt_vocab': dataset.label_vocab.to_state(),
+    'num_steps': num_steps,
+}, vocab_path)
+print(f"已保存词表到 {vocab_path}")
 save_epoch = 5
 eval_epoch = 5
 

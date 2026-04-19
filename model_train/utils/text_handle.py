@@ -8,10 +8,8 @@ STOP_WORDS = {
     '本书', '书', '一书', '全书', '该书',
     '介绍', '主要', '内容', '包括', '涉及', '阐述', '讲述', '论述', '描述', '叙述',
     '分析', '探讨', '研究', '讨论', '介绍了', '包含',
-    '读者', '作者', '编者', '译者',
     '章节', '部分', '第一', '第二', '第三', '附录',
     '以及', '并且', '同时', '通过', '对于', '关于', '针对',
-    '方面', '问题', '方法', '技术', '理论', '实践', '应用',
     '进行', '实现', '完成', '提供', '给出', '建立',
     '等', '等等', '其他', '相关', '具体', '基本', '主要',
     '的', '了', '在', '是', '有', '和', '与', '或', '及',
@@ -95,6 +93,28 @@ class WordCount:
 
     def __len__(self):
         return len(self.word_index)
+
+    def to_state(self):
+        return {
+            'min_freq': self.min_freq,
+            'max_freq': self.max_freq,
+            'reserved_tokens': self.reserved_tokens,
+            'word_count': self.word_count,
+            'word_index': self.word_index,
+        }
+
+    @classmethod
+    def from_state(cls, state):
+        vocab = cls(
+            text_list=[],
+            min_freq=state.get('min_freq', 0),
+            max_freq=state.get('max_freq'),
+            reserved_tokens=state.get('reserved_tokens', []),
+        )
+        vocab.word_count = dict(state.get('word_count', {}))
+        vocab.word_index = dict(state['word_index'])
+        vocab.index_word = {idx: token for token, idx in vocab.word_index.items()}
+        return vocab
 
 
 if __name__ =="__main__":
