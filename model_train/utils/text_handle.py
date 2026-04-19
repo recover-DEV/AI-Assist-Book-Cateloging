@@ -6,14 +6,6 @@ _tokenizer = None
 # 书目简介中普遍出现但对分类无帮助的停用词
 STOP_WORDS = {
     '本书', '书', '一书', '全书', '该书',
-    '介绍', '主要', '内容', '包括', '涉及', '阐述', '讲述', '论述', '描述', '叙述',
-    '分析', '探讨', '研究', '讨论', '介绍了', '包含',
-    '章节', '部分', '第一', '第二', '第三', '附录',
-    '以及', '并且', '同时', '通过', '对于', '关于', '针对',
-    '进行', '实现', '完成', '提供', '给出', '建立',
-    '等', '等等', '其他', '相关', '具体', '基本', '主要',
-    '的', '了', '在', '是', '有', '和', '与', '或', '及',
-    '各', '每', '这', '那', '其', '此',
 }
 
 def _get_tokenizer():
@@ -38,6 +30,12 @@ def intro_tokenize_batch(text_list, batch_size=64):
         batch_tokens = tokenizer(batch)
         result.extend([_filter_tokens(tokens) for tokens in batch_tokens])
     return result
+
+def intro_tokenize_batch_with_sep(title_list, intro_list, batch_size=64):
+    """分别对 title 和 introduction 分词，中间插入 ['<sep>'] 后合并。"""
+    title_tokens = intro_tokenize_batch(title_list, batch_size)
+    intro_tokens = intro_tokenize_batch(intro_list, batch_size)
+    return [t + ['<sep>'] + i for t, i in zip(title_tokens, intro_tokens)]
 
 def classify_tokenize_text(text):
     text = text.split('/')[0] 

@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from .text_handle import WordCount, intro_tokenize_batch
+from .text_handle import WordCount, intro_tokenize_batch, intro_tokenize_batch_with_sep
 import pandas as pd
 import torch
 
@@ -18,16 +18,13 @@ def read_data(file_path):
     return data
 
 def build_dataset(file_path):
-    data = pd.read_csv(file_path,encoding='utf-8')
+    data = pd.read_csv(file_path, encoding='utf-8')
     data = data.dropna(subset=['real_class_no'])
     data = data.dropna(subset=['title', 'introduction'], how='all')
-    title_list = data['title'].fillna('').astype(str).str.strip()
-    introduction_list = data['introduction'].fillna('').astype(str).str.strip()
-    intro_list = (
-        title_list + ' ' + introduction_list
-    ).str.strip().tolist()
-    classify_list = data['real_class_no'].tolist()
-    intro_token_list = intro_tokenize_batch(intro_list)
+    title_list        = data['title'].fillna('').astype(str).str.strip().tolist()
+    introduction_list = data['introduction'].fillna('').astype(str).str.strip().tolist()
+    classify_list     = data['real_class_no'].tolist()
+    intro_token_list  = intro_tokenize_batch_with_sep(title_list, introduction_list)
     classify_token_list = [list(cls.split('/')[0]) for cls in classify_list]
     return intro_token_list, classify_token_list
 
@@ -35,7 +32,7 @@ class TextDataset(Dataset):
     def __init__(self, intro_token_list, classify_token_list,
                  min_freq=1, max_freq=None, src_num_steps=256, tgt_num_steps=16):
         self.vocab = WordCount(intro_token_list, min_freq=min_freq, max_freq=max_freq,
-                               reserved_tokens=['<pad>', '<unk>', '<eos>'])
+                               reserved_tokens=['<pad>', '<unk>', '<eos>', '<sep>'])
         self.label_vocab = WordCount(classify_token_list, min_freq=min_freq,
                                      reserved_tokens=['<pad>', '<bos>', '<eos>', '<unk>'])
 
@@ -50,7 +47,7 @@ class TextDataset(Dataset):
             for tokens in intro_token_list
         ]
         tgt_indices = [
-            [bos] + [self.label_vocab[t] for t in tokens if t in self.label_vocab.word_index] + [eos]
+            [self.label_vocab[t] for t in tokens if t in self.label_vocab.word_index] + [eos]
             for tokens in classify_token_list
         ]
 

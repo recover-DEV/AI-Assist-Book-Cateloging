@@ -23,9 +23,9 @@ class EncoderDecoder(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
     
-    def forward(self, enc_X, dec_X, *args):
+    def forward(self, enc_X, dec_X, *args, tgt_key_padding_mask=None):
         enc_outputs = self.encoder(enc_X, *args)
         dec_state = self.decoder.init_state(enc_outputs, *args)
-        return self.decoder(dec_X, dec_state)
+        return self.decoder(dec_X, dec_state, tgt_key_padding_mask=tgt_key_padding_mask)
 
 

@@ -27,7 +27,7 @@ class LSTM_decoder(Decoder):
     def init_state(self,enc_outputs, *args):
         return enc_outputs[1]
     
-    def forward(self,X,state):
+    def forward(self,X,state,tgt_key_padding_mask=None):
         X = self.embedding(X).permute(1,0,2)
         context = state[0][-1].repeat(X.shape[0],1,1)
         X = torch.cat((X,context), 2)
