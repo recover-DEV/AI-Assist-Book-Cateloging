@@ -4,3 +4,5 @@ model_train/data_set/
 **/*.pyc
 .cursor/
 .idea/
+bert-base-chinese/
+
