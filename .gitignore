@@ -6,4 +6,3 @@ model_train/data_set/
 .idea/
 bert-base-chinese/
 model_train/models/
-backend/model/
