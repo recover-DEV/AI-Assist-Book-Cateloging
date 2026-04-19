@@ -3,3 +3,4 @@ model_train/data_set/
 **/__pycache__/
 **/*.pyc
 .cursor/
+.idea/
