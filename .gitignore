@@ -5,4 +5,5 @@ model_train/data_set/
 .cursor/
 .idea/
 bert-base-chinese/
-
+model_train/models/
+backend/model/
