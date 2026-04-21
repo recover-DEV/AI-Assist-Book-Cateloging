@@ -5,6 +5,7 @@ import collections
 import math
 import os
 import sys
+import warnings
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -647,6 +648,10 @@ def _try_init_xla() -> torch.device:
     global IS_XLA, _XM, _PL
     # 必须在 import torch_xla 之前清理，否则运行时可能已读到错误配置
     _kaggle_xla_single_process_env()
+    # Kaggle 镜像里常见、与训练逻辑无关；设 BERT_SHOW_XLA_WARN=1 可恢复显示
+    if os.environ.get("BERT_SHOW_XLA_WARN") != "1":
+        warnings.filterwarnings("ignore", category=UserWarning, module="torch_xla")
+        warnings.filterwarnings("ignore", category=UserWarning, module="jax._src.cloud_tpu_init")
     import torch_xla.core.xla_model as xm
     import torch_xla.distributed.parallel_loader as pl
 
@@ -926,8 +931,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import os
-    os.environ["BERT_DEVICE"] = "xla"
+    # 勿在此强制 BERT_DEVICE=xla：本机无 TPU 时会直接报错。Kaggle 需 TPU 时在 Notebook 首格自行设置。
     if "--eval-only" in sys.argv:
         eval_only_main()
     else:
