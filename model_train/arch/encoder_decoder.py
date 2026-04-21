@@ -25,7 +25,11 @@ class EncoderDecoder(nn.Module):
     
     def forward(self, enc_X, dec_X, *args, tgt_key_padding_mask=None):
         enc_outputs = self.encoder(enc_X, *args)
-        dec_state = self.decoder.init_state(enc_outputs, *args)
+        if isinstance(enc_outputs, dict) and 'last_hidden_state' in enc_outputs:
+            memory = enc_outputs['last_hidden_state']
+        else:
+            memory = getattr(enc_outputs, 'last_hidden_state', enc_outputs)
+        dec_state = self.decoder.init_state(memory, *args)
         return self.decoder(dec_X, dec_state, tgt_key_padding_mask=tgt_key_padding_mask)
 
 

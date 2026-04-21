@@ -1,5 +1,4 @@
-from arch.encoder_decoder import Encoder, Decoder, EncoderDecoder
-from utils.text_handle import intro_tokenize_text, WordCount,classify_tokenize_text
+from arch.encoder_decoder import Encoder, Decoder
 from torch.nn import LSTM
 import torch
 import os

@@ -94,7 +94,7 @@ else:
 train_seq2seq(EncoderDecoder, data_iter, optimizer, num_epochs, dataset.label_vocab, device, save_dir, save_epoch, eval_epoch, start_epoch, val_iter=val_iter, scheduler=scheduler)
 
 
-pred_seq,_  = predict_seq2seq(EncoderDecoder, "本书介绍DWDM的发展与起源、系统的网元级测试、系统测试结果举例等。", dataset.vocab, dataset.label_vocab, src_num_steps, device, title="DWDM系统测试")
+pred_seq,_  = predict_seq2seq(EncoderDecoder, "本书介绍DWDM的发展与起源、系统的网元级测试、系统测试结果举例等。", dataset.vocab, dataset.label_vocab, tgt_num_steps, device, title="DWDM系统测试")
 pred_seq = pred_seq.split('<bos>')[-1]
 label_seq = 'TN929.11'
 print("pred_seq: ", pred_seq)
