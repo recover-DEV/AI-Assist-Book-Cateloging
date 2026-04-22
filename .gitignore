@@ -6,3 +6,4 @@ model_train/data_set/
 .idea/
 bert-base-chinese/
 model_train/models/
+model_train/train_kaggle.py

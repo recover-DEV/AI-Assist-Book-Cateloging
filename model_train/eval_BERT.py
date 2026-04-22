@@ -28,11 +28,13 @@ tgt_num_steps = vocab_state.get("tgt_num_steps", 15)
 
 # 与 train_BRET.py 中 Decoder / BERT 结构保持一致
 n_heads = 8
-decoder_layers = 2
-dim_feedforward = 512
-dropout = 0.3
+decoder_layers = 4
+dim_feedforward = 1024
+dropout = 0.1
 
-encoder = BERT_encoder(max_length=src_num_steps, freeze_bert=True)
+
+# 替换成你自己的BERT模型路径
+encoder = BERT_encoder(model_path='E:\\dev\\项目\\AI_Assist_book_cateloging\\model_train\\bert-base-chinese', max_length=src_num_steps, freeze_bert=True)
 decoder = TransformerDecoder(
     len(tgt_vocab),
     d_model=768,
