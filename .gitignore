@@ -7,3 +7,6 @@ model_train/data_set/
 bert-base-chinese/
 model_train/models/
 model_train/train_kaggle.py
+model_train/kaggle_cls.py
+backend/model/BERT8-660.pth
+model_train/models_cls

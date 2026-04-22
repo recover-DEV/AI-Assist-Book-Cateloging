@@ -12,12 +12,13 @@ def sequence_mask(X, valid_len, value=0):
     return X
 
 class MaskedSoftmaxCELoss(nn.CrossEntropyLoss):
+    def __init__(self, label_smoothing: float = 0.0):
+        super().__init__(label_smoothing=label_smoothing, reduction="none")
+
     def forward(self, pred, label, valid_len):
         weights = torch.ones_like(label)
         weights = sequence_mask(weights, valid_len)
-        self.reduction='none'
-        unweighted_loss = super(MaskedSoftmaxCELoss, self).forward(
-            pred.permute(0, 2, 1), label)
+        unweighted_loss = super().forward(pred.permute(0, 2, 1), label)
         weighted_loss = (unweighted_loss * weights).mean(dim=1)
         return weighted_loss
 
