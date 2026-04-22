@@ -3,13 +3,15 @@ from transformers import BertModel, BertTokenizer
 import torch
 
 class BERT_encoder(Encoder):
-    def __init__(self, model_path='bert-base-chinese', max_length=256, freeze_bert=False):
+    def __init__(self, model_path='bert-base-chinese', max_length=256, n_freeze_layers=4, freeze_bert=False):
         super(BERT_encoder, self).__init__()
         self.max_length = max_length
         self.bert = BertModel.from_pretrained(model_path)
-        for i in range(6):  # 冻 layer.0 ~ layer.5
+        # 只冻结前 n_freeze_layers 个 Transformer 层，Embedding 默认不冻结
+        for i in range(n_freeze_layers):
             for p in self.bert.encoder.layer[i].parameters():
                 p.requires_grad = False
+        # freeze_bert 保留向后兼容：为 True 时额外冻结 Embedding
         if freeze_bert:
             for p in self.bert.embeddings.parameters():
                 p.requires_grad = False

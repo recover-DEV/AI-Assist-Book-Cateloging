@@ -4,7 +4,7 @@ import pandas as pd
 
 from arch.encoder_decoder import EncoderDecoder
 from arch.Transformer import TransformerDecoder
-from arch.train_pred import predict_bert_seq2seq
+from arch.train_pred import predict_bert_seq2seq, beam_search_bert_seq2seq
 from arch.BERT import BERT_encoder
 from utils.Accurancy import bleu, hierarchical_accuracy
 from utils.text_handle import WordCount
@@ -78,11 +78,18 @@ total_num = 0
 all_preds = []
 all_labels = []
 
+BEAM_WIDTH = 3   # 设为 1 则退化为贪心解码
+
 for title, intro, classify in zip(title_list, intro_list, classify_list):
     total_num += 1
-    pred_seq, _ = predict_bert_seq2seq(
-        model, title, intro, tgt_vocab, tgt_num_steps, device=device
-    )
+    if BEAM_WIDTH > 1:
+        pred_seq, _ = beam_search_bert_seq2seq(
+            model, title, intro, tgt_vocab, tgt_num_steps, device=device, beam_width=BEAM_WIDTH
+        )
+    else:
+        pred_seq, _ = predict_bert_seq2seq(
+            model, title, intro, tgt_vocab, tgt_num_steps, device=device
+        )
     pred_seq = pred_seq.split("<bos>")[-1]
     classify = str(classify).split("/")[0]
     accuracy_bleu = bleu(pred_seq, classify, k=2)

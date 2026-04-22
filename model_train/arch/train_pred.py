@@ -302,6 +302,101 @@ def predict_bert_seq2seq(net, title,intro,tgt_vocab, num_steps, device):
         dec_X = torch.cat([dec_X, next_token], dim=1)
     return ''.join(tgt_vocab.index_word.get(i, '<unk>') for i in output_seq), 1
 
+
+def beam_search_bert_seq2seq(net, title, intro, tgt_vocab, num_steps, device, beam_width=3):
+    """Beam search 解码。
+
+    beam_width 条分支并行扩展；某分支预测到 <eos> 后停止并记录，其余分支继续，
+    直到全部分支结束或达到 num_steps；返回长度归一化得分最高的分类号字符串。
+
+    Args:
+        net        : EncoderDecoder 模型
+        title      : 书名字符串
+        intro      : 简介字符串
+        tgt_vocab  : WordCount 词表
+        num_steps  : 最大生成步数
+        device     : torch.device
+        beam_width : 候选分支数（默认 3）
+
+    Returns:
+        (分类号字符串, beam_width)
+    """
+    import torch.nn.functional as F
+
+    net.eval()
+    net.to(device)
+
+    bos_id = tgt_vocab['<bos>']
+    eos_id = tgt_vocab['<eos>']
+
+    with torch.no_grad():
+        # ── 1. 编码输入 ──────────────────────────────────────────────────────
+        tokenize = net.encoder.tokenize_text(title, intro)
+        tokenize = {k: v.to(device) for k, v in tokenize.items() if isinstance(v, torch.Tensor)}
+        memory        = net.encoder(tokenize)['last_hidden_state']  # [1, src_len, d_model]
+        enc_valid_len = tokenize['attention_mask'].sum(dim=1)       # [1]
+
+        # ── 2. 初始分支：1 条（第一步自动扩展到 beam_width）────────────────
+        # active 中每个元素：(累积 log-prob, token_id 列表，含 bos)
+        active    = [(0.0, [bos_id])]
+        completed = []   # (score, token 列表，已去掉 bos/eos)
+
+        for _ in range(num_steps):
+            if not active:
+                break
+
+            n       = len(active)
+            max_len = max(len(b[1]) for b in active)
+
+            # ── 3. 组装解码器输入 [n, max_len] ──────────────────────────────
+            seqs = torch.zeros(n, max_len, dtype=torch.long, device=device)
+            for i, (_, toks) in enumerate(active):
+                seqs[i, :len(toks)] = torch.tensor(toks, dtype=torch.long, device=device)
+
+            mem   = memory.expand(n, -1, -1)   # [n, src_len, d_model]
+            enc_v = enc_valid_len.expand(n)    # [n]
+
+            # ── 4. 解码器前向，取最后一步的 log 概率 ────────────────────────
+            state     = net.decoder.init_state(mem, enc_v)
+            Y, _      = net.decoder(seqs, state)                   # [n, seq_len, vocab]
+            log_probs = F.log_softmax(Y[:, -1, :], dim=-1)         # [n, vocab]
+
+            # ── 5. 每条活跃分支生成 beam_width 个候选，全局排序 ─────────────
+            candidates = []
+            for i, (score, toks) in enumerate(active):
+                top_lp, top_ids = log_probs[i].topk(beam_width)
+                for lp, tid in zip(top_lp.tolist(), top_ids.tolist()):
+                    candidates.append((score + lp, toks + [tid]))
+            candidates.sort(key=lambda x: x[0], reverse=True)
+
+            # ── 6. 分流：eos → completed，其余保留为下一步活跃分支 ──────────
+            new_active = []
+            for score, toks in candidates:
+                if toks[-1] == eos_id:
+                    # 去掉 bos（第 0 位）和 eos（最后一位）
+                    completed.append((score, toks[1:-1]))
+                else:
+                    new_active.append((score, toks))
+                    if len(new_active) == beam_width:
+                        break   # 已选够活跃分支，退出
+
+            active = new_active
+
+        # ── 7. 超出 num_steps 仍未结束的分支直接收尾（去掉 bos）────────────
+        for score, toks in active:
+            completed.append((score, toks[1:]))
+
+        if not completed:
+            return '', beam_width
+
+        # ── 8. 长度归一化后取最优，避免短序列得分虚高 ──────────────────────
+        def _length_norm(item):
+            score, toks = item
+            return score / max(len(toks), 1)
+
+        best_score, best_toks = max(completed, key=_length_norm)
+        return ''.join(tgt_vocab.index_word.get(t, '<unk>') for t in best_toks), beam_width
+
 if __name__ == "__main__":
     from arch.encoder_decoder import EncoderDecoder
     title = ["书名"]
